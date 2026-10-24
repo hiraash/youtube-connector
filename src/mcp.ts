@@ -1,12 +1,14 @@
 // Minimal stateless MCP server over Streamable HTTP (JSON responses, no sessions).
-import { callTool, TOOLS } from './tools';
-import type { Env, Props } from './google';
+import { callTool, toolsFor } from './tools';
+import { videoEditsEnabled, type Env, type Props } from './google';
 
 const SERVER_INFO = { name: 'youtube-connector', version: '1.0.0' };
 const DEFAULT_PROTOCOL = '2025-06-18';
 
-const INSTRUCTIONS = [
-  'Read-only access to the signed-in YouTube channel via the YouTube Data, Analytics and Reporting APIs. Call whoami to see which channel.',
+const instructions = (env: Env) => [
+  videoEditsEnabled(env)
+    ? 'Access to the signed-in YouTube channel via the YouTube Data, Analytics and Reporting APIs: read-only, except video_update, which changes one video\'s title/description/tags (dry run unless apply:true). Call whoami to see which channel.'
+    : 'Read-only access to the signed-in YouTube channel via the YouTube Data, Analytics and Reporting APIs. Call whoami to see which channel.',
   'Prefer analytics_query for metrics (any metric/dimension/filter, full history). Use data_api_get for video lists, metadata and comments.',
   'Money is USD by default and is an estimate until paid. Analytics days are US Pacific time; data lags ~2–3 days.',
   'Thumbnail impressions and impression CTR are only in the Reporting API (reporting_* tools).',
@@ -45,13 +47,13 @@ async function handleOne(m: any, env: Env, props: Props): Promise<any | null> {
         protocolVersion: m.params?.protocolVersion ?? DEFAULT_PROTOCOL,
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
-        instructions: INSTRUCTIONS,
+        instructions: instructions(env),
       });
     case 'ping':
       return ok(m.id, {});
     case 'tools/list':
       return ok(m.id, {
-        tools: TOOLS.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations })),
+        tools: toolsFor(env).map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations })),
       });
     case 'tools/call':
       return ok(m.id, await callTool(m.params?.name, m.params?.arguments ?? {}, env, props));
