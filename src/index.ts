@@ -153,6 +153,9 @@ async function app(req: Request, env: Env, base: string): Promise<Response> {
       return new Response(null, { status: 302, headers });
     }
 
+    if (url.pathname === '/privacy') {
+      return page(200, PRIVACY);
+    }
     if (url.pathname === '/robots.txt') {
       return new Response('User-agent: *\nDisallow: /\n', { headers: { 'Content-Type': 'text/plain' } });
     }
@@ -188,6 +191,14 @@ const CSS = `body{font:16px/1.5 system-ui,sans-serif;max-width:520px;margin:40px
 h1{font-size:22px}.card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:20px}
 button{font:inherit;padding:10px 18px;border-radius:8px;border:1px solid #ccc;background:#fff;cursor:pointer}
 button.primary{background:#c00;color:#fff;border-color:#c00}.warn{color:#a40}code{background:#f0f0f0;padding:2px 4px;border-radius:4px}`;
+
+const PRIVACY = `<strong>Privacy</strong><br><br>
+This is a self-hosted, read-only connector between an MCP client (such as Claude) and the YouTube account of the person who deployed it.<br><br>
+<strong>What it accesses:</strong> YouTube channel, video, comment, analytics and revenue data, read-only, only for Google accounts the operator has allowed.<br>
+<strong>What it stores:</strong> encrypted OAuth tokens needed to keep you signed in. No YouTube data is stored; it is fetched on request and returned to the client that asked.<br>
+<strong>Sharing:</strong> data is not sold or shared with anyone other than the signed-in MCP client.<br>
+<strong>Revoke:</strong> disconnect in your MCP client, or remove access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.<br><br>
+Use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.`;
 
 function consentPage(d: ConsentDescription, handle: string): string {
   const origin = d.clientDomain
