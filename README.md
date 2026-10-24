@@ -28,7 +28,8 @@ https://youtube-connector.<your-subdomain>.workers.dev
 ### 2. Create a Google OAuth client (5 min)
 1. [Create a Google Cloud project](https://console.cloud.google.com/projectcreate) (any name).
 2. [Enable the three YouTube APIs](https://console.cloud.google.com/flows/enableapi?apiid=youtube.googleapis.com,youtubeanalytics.googleapis.com,youtubereporting.googleapis.com) → **Enable**.
-3. [Google Auth Platform → Get started](https://console.cloud.google.com/auth/overview): app name `YouTube Connector`, your email, audience **External** → **Create**.
+3. [Google Auth Platform → Get started](https://console.cloud.google.com/auth/overview): app name `YouTube Connector`, your email, audience **External** (not Internal, even on Google Workspace) → **Create**.
+   Then [Branding](https://console.cloud.google.com/auth/branding): home page `https://youtube-connector.<your-subdomain>.workers.dev/`, privacy policy `…/privacy`, authorized domain `<your-subdomain>.workers.dev` → **Save**.
 4. [Audience](https://console.cloud.google.com/auth/audience) → **Publish app** → confirm. *(Skip this and sign-ins expire every 7 days.)*
 5. [Clients → Create client](https://console.cloud.google.com/auth/clients/create):
    - Type **Web application**
@@ -89,6 +90,8 @@ Free for personal use. Typical use is a few hundred requests a day against Cloud
 
 | Problem | Fix |
 |---|---|
+| `Error 403: org_internal` | Your Google app's audience is *Internal* (common with Google Workspace accounts). Google Auth Platform → Audience → **Make external**, then **Publish app**. |
+| **Publish app** is greyed out | Google Auth Platform → Branding: fill **Application home page** (`https://youtube-connector.<your-subdomain>.workers.dev/`), **Privacy policy** (`…/privacy`) and add `<your-subdomain>.workers.dev` under **Authorized domains** → Save. |
 | `redirect_uri_mismatch` | Copy the redirect URI from the setup page into the Google client exactly. |
 | "not allowed to use this connector" | Add that email to `ALLOWED_EMAILS`, or the channel ID to `ALLOWED_CHANNEL_IDS` (Brand Accounts). |
 | Revenue metrics error / empty | Sign in with the account that owns or manages the channel and has monetisation. |
