@@ -8,6 +8,7 @@ export interface Env {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   CONSENT_SECRET?: string; // optional; derived from GOOGLE_CLIENT_SECRET when unset
+  ENABLE_VIDEO_EDITS?: string; // optional; "true" adds the video_update tool and the scope it needs
 }
 
 /** What we keep (encrypted) inside each MCP grant. */
@@ -27,6 +28,17 @@ export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/yt-analytics-monetary.readonly',
 ];
 
+/** Needed only by the opt-in video_update tool (YouTube's narrowest scope that allows videos.update). */
+export const EDIT_SCOPE = 'https://www.googleapis.com/auth/youtube.force-ssl';
+
+export function videoEditsEnabled(env: Env): boolean {
+  return String(env.ENABLE_VIDEO_EDITS ?? '').trim().toLowerCase() === 'true';
+}
+
+export function googleScopes(env: Env): string[] {
+  return videoEditsEnabled(env) ? [...GOOGLE_SCOPES, EDIT_SCOPE] : GOOGLE_SCOPES;
+}
+
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
@@ -40,7 +52,7 @@ export function googleAuthorizeUrl(env: Env, origin: string, state: string, code
   u.searchParams.set('client_id', env.GOOGLE_CLIENT_ID);
   u.searchParams.set('redirect_uri', redirectUri(origin));
   u.searchParams.set('response_type', 'code');
-  u.searchParams.set('scope', GOOGLE_SCOPES.join(' '));
+  u.searchParams.set('scope', googleScopes(env).join(' '));
   u.searchParams.set('access_type', 'offline');
   u.searchParams.set('prompt', 'consent select_account'); // always return a refresh token; allow Brand Account pick
   u.searchParams.set('include_granted_scopes', 'true');
