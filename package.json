@@ -1,0 +1,48 @@
+{
+  "name": "youtube-connector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-hosted, read-only MCP connector that gives Claude full access to your YouTube channel (Data, Analytics incl. revenue, Reporting APIs). Runs free on Cloudflare Workers.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hiraash/youtube-connector.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "esbuild test/entry.ts --bundle --format=esm --platform=neutral --outfile=.test-build/entry.mjs --log-level=warning && node --test test/mcp.test.mjs"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "1.2.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261019.1",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.45.0",
+    "esbuild": "^0.25.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "GOOGLE_CLIENT_ID": {
+        "description": "From your Google OAuth **Web application** client ([create one](https://console.cloud.google.com/auth/clients/create)). Redirect URI: `https://youtube-connector.<your-subdomain>.workers.dev/callback`. See the README, step 2."
+      },
+      "GOOGLE_CLIENT_SECRET": {
+        "description": "The client secret of the same Google OAuth client."
+      },
+      "ALLOWED_EMAILS": {
+        "description": "Comma-separated Google emails allowed to connect, e.g. `you@gmail.com,partner@gmail.com`. Nobody else can sign in."
+      },
+      "ALLOWED_CHANNEL_IDS": {
+        "description": "Optional. Comma-separated channel IDs (`UC…`) whose owner may connect — needed if your channel is a **Brand Account**. Enter `none` if not needed."
+      },
+      "OAUTH_KV": {
+        "description": "Stores OAuth grants (encrypted). Created automatically."
+      }
+    }
+  }
+}
