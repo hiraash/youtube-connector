@@ -21,6 +21,7 @@ import {
   userInfo,
   type Env,
   type Props,
+  videoEditsEnabled,
 } from './google';
 import { handleMcp } from './mcp';
 
@@ -104,7 +105,7 @@ async function app(req: Request, env: Env, base: string): Promise<Response> {
       const details = await oauth.describeConsent(authReq);
       const consent = await oauth.beginConsent(authReq);
       consent.headers.set('Content-Type', 'text/html; charset=utf-8');
-      return new Response(consentPage(details, consent.handle), { headers: consent.headers });
+      return new Response(consentPage(details, consent.handle, videoEditsEnabled(env)), { headers: consent.headers });
     }
 
     if (url.pathname === '/authorize' && req.method === 'POST') {
@@ -193,23 +194,23 @@ button{font:inherit;padding:10px 18px;border-radius:8px;border:1px solid #ccc;ba
 button.primary{background:#c00;color:#fff;border-color:#c00}.warn{color:#a40}code{background:#f0f0f0;padding:2px 4px;border-radius:4px}`;
 
 const PRIVACY = `<strong>Privacy</strong><br><br>
-This is a self-hosted, read-only connector between an MCP client (such as Claude) and the YouTube account of the person who deployed it.<br><br>
-<strong>What it accesses:</strong> YouTube channel, video, comment, analytics and revenue data, read-only, only for Google accounts the operator has allowed.<br>
+This is a self-hosted connector between an MCP client (such as Claude) and the YouTube account of the person who deployed it.<br><br>
+<strong>What it accesses:</strong> YouTube channel, video, comment, analytics and revenue data, read-only, only for Google accounts the operator has allowed. If the operator turns on video edits, it can also change video titles, descriptions and tags when the client asks; nothing else is ever changed.<br>
 <strong>What it stores:</strong> encrypted OAuth tokens needed to keep you signed in. No YouTube data is stored; it is fetched on request and returned to the client that asked.<br>
 <strong>Sharing:</strong> data is not sold or shared with anyone other than the signed-in MCP client.<br>
 <strong>Revoke:</strong> disconnect in your MCP client, or remove access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.<br><br>
 Use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.`;
 
-function consentPage(d: ConsentDescription, handle: string): string {
+function consentPage(d: ConsentDescription, handle: string, edits = false): string {
   const origin = d.clientDomain
     ? `Published by <strong>${esc(d.clientDomain)}</strong>.`
     : 'This app registered itself; its name is not verified.';
   return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Connect ${esc(d.clientName)}</title><style>${CSS}</style>
-<div class="card"><h1>Allow <strong>${esc(d.clientName)}</strong> to read your YouTube data?</h1>
+<div class="card"><h1>Allow <strong>${esc(d.clientName)}</strong> to ${edits ? 'access' : 'read'} your YouTube data?</h1>
 <p>${origin} Access will be sent to <strong>${esc(d.redirectHost)}</strong>.</p>
 ${d.redirectIsLoopback ? '<p class="warn"><strong>This sends access to an app on your computer.</strong> Continue only if you just started connecting from it.</p>' : ''}
-<p>Read-only: channel, videos, comments, analytics and revenue reports. Next you will sign in with Google — pick the account or Brand Account that owns the channel.</p>
+<p>${edits ? 'Reads channel, videos, comments, analytics and revenue reports, and can change video titles, descriptions and tags. Google will describe this as permission to edit your videos.' : 'Read-only: channel, videos, comments, analytics and revenue reports.'} Next you will sign in with Google — pick the account or Brand Account that owns the channel.</p>
 <form method="post"><input type="hidden" name="handle" value="${esc(handle)}">
 <button class="primary" name="decision" value="approve">Continue with Google</button> <button name="decision" value="deny">Cancel</button></form></div>`;
 }
