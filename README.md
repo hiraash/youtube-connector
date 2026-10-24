@@ -75,6 +75,15 @@ Done. Ask Claude something about your channel.
 
 Read-only. The one exception, `reporting_create_job`, just asks YouTube to start generating a daily report.
 
+### Optional: let Claude edit titles, descriptions and tags
+Off by default. To turn it on, add a variable `ENABLE_VIDEO_EDITS` = `true` (Cloudflare → `youtube-connector` → Settings → Variables and Secrets), then disconnect and reconnect the connector in Claude so Google asks for the extra permission.
+
+| Tool | Purpose |
+|---|---|
+| `video_update` | Change one video's title, description and/or tags. Dry run by default (returns before/after); saves only with `apply: true`. Only videos on the signed-in channel. No uploads, deletes, privacy or thumbnail changes. |
+
+Google's consent screen will say the app can "see, edit, and permanently delete" your videos: that's the narrowest scope YouTube offers for editing. The connector itself can only change those three fields. Turn the variable off to remove the tool.
+
 ## Security & privacy
 - Runs entirely in **your** Cloudflare account with **your** Google OAuth client.
 - Only `ALLOWED_EMAILS` / owners of `ALLOWED_CHANNEL_IDS` can sign in. If neither is set, nobody can.
@@ -94,6 +103,7 @@ Free for personal use. Typical use is a few hundred requests a day against Cloud
 | **Publish app** is greyed out | Google Auth Platform → Branding: fill **Application home page** (`https://youtube-connector.<your-subdomain>.workers.dev/`), **Privacy policy** (`…/privacy`) and add `<your-subdomain>.workers.dev` under **Authorized domains** → Save. |
 | `redirect_uri_mismatch` | Copy the redirect URI from the setup page into the Google client exactly. |
 | "not allowed to use this connector" | Add that email to `ALLOWED_EMAILS`, or the channel ID to `ALLOWED_CHANNEL_IDS` (Brand Accounts). |
+| `video_update` says insufficient permissions | You turned on `ENABLE_VIDEO_EDITS` after connecting: disconnect and reconnect the connector in Claude. |
 | Revenue metrics error / empty | Sign in with the account that owns or manages the channel and has monetisation. |
 | Have to reconnect every week | Google app is still in *Testing* — step 2.4, **Publish app**. |
 | Setup page shows a checklist | Something is missing — Cloudflare → Workers & Pages → `youtube-connector` → Settings → Variables and Secrets. |
