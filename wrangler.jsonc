@@ -6,6 +6,9 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "observability": { "enabled": true },
 
+  // Keep variables set in the Cloudflare dashboard when deploying from Git.
+  "keep_vars": true,
+
   // No id on purpose: Wrangler (>= 4.45) creates the namespace on first deploy.
   "kv_namespaces": [{ "binding": "OAUTH_KV" }]
 
