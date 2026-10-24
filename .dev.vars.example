@@ -2,3 +2,5 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 ALLOWED_EMAILS=
 ALLOWED_CHANNEL_IDS=none
+# Optional: "true" adds the video_update tool (titles/descriptions/tags) and asks Google for edit permission
+ENABLE_VIDEO_EDITS=
