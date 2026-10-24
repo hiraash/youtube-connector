@@ -1,5 +1,5 @@
-// Read-only YouTube tools exposed over MCP.
-import { accessToken, googleGet, googleSend, type Env, type Props } from './google';
+// YouTube tools exposed over MCP. All read-only, except the opt-in video_update (ENABLE_VIDEO_EDITS=true).
+import { accessToken, googleGet, googleSend, videoEditsEnabled, type Env, type Props } from './google';
 
 const DATA = 'https://www.googleapis.com/youtube/v3/';
 const ANALYTICS = 'https://youtubeanalytics.googleapis.com/v2/';
@@ -14,6 +14,7 @@ interface ToolDef {
   inputSchema: Json;
   annotations?: Json;
   run: (args: Json, ctx: { env: Env; props: Props; token: () => Promise<string> }) => Promise<string>;
+  edits?: boolean; // only listed/callable when ENABLE_VIDEO_EDITS=true
 }
 
 const RO = { readOnlyHint: true, openWorldHint: true };
@@ -191,6 +192,64 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'video_update',
+    edits: true,
+    description: [
+      'Change the title, description and/or tags of one video on the signed-in channel. Nothing else (no uploads, deletes, privacy, thumbnails).',
+      'Defaults to a dry run: returns before/after and the fields that would change. Pass apply:true to save.',
+      'Fields you omit keep their current value. Keep the returned "before" to roll back.',
+      'Limits: title ≤ 100 chars, description ≤ 5000 bytes, tags ≤ 500 chars in total; no < or > in title/description.',
+    ].join(' '),
+    inputSchema: {
+      type: 'object',
+      properties: {
+        videoId: { type: 'string' },
+        title: { type: 'string' },
+        description: { type: 'string' },
+        tags: { type: 'array', items: { type: 'string' } },
+        apply: { type: 'boolean', default: false, description: 'false (default) = preview only' },
+      },
+      required: ['videoId'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    run: async (a, { props, token }) => {
+      const id = String(a.videoId ?? '').trim();
+      if (!/^[\w-]{11}$/.test(id)) return 'ERROR videoId must be an 11-character YouTube video id';
+      const t = await token();
+      const r = await googleGet(t, DATA + 'videos?part=snippet&id=' + encodeURIComponent(id));
+      if (r.status !== 200) return err(r);
+      const v = (JSON.parse(r.text).items ?? [])[0];
+      if (!v) return 'ERROR Video not found: ' + id;
+      const s = v.snippet ?? {};
+      if (props.channels.length && !props.channels.some((c) => c.id === s.channelId)) return 'ERROR Video is not on the signed-in channel';
+      const before = { title: s.title ?? '', description: s.description ?? '', tags: s.tags ?? [] };
+      const after = {
+        title: a.title ?? before.title,
+        description: a.description ?? before.description,
+        tags: Array.isArray(a.tags) ? a.tags.map((x: any) => String(x).trim()).filter(Boolean) : before.tags,
+      };
+      const problems = validateSnippet(after);
+      if (problems.length) return 'ERROR ' + problems.join('; ');
+      const changed = (['title', 'description', 'tags'] as const).filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+      if (!changed.length || !a.apply) return JSON.stringify({ videoId: id, applied: false, changed, before, after }, null, 1);
+      const body = {
+        id,
+        snippet: {
+          title: after.title,
+          description: after.description,
+          tags: after.tags,
+          categoryId: s.categoryId,
+          ...(s.defaultLanguage ? { defaultLanguage: s.defaultLanguage } : {}),
+          ...(s.defaultAudioLanguage ? { defaultAudioLanguage: s.defaultAudioLanguage } : {}),
+        },
+      };
+      const u = await googleSend(t, DATA + 'videos?part=snippet', 'PUT', body);
+      if (u.status !== 200) return err(u);
+      return JSON.stringify({ videoId: id, applied: true, changed, before, after }, null, 1);
+    },
+  },
+  {
     name: 'api_get',
     description: 'Escape hatch: GET any URL under https://www.googleapis.com/youtube/v3/, https://youtubeanalytics.googleapis.com/v2/ (incl. groups, groupItems) or https://youtubereporting.googleapis.com/v1/.',
     inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'], additionalProperties: false },
@@ -204,8 +263,13 @@ export const TOOLS: ToolDef[] = [
   },
 ];
 
+/** Tools available on this deployment. */
+export function toolsFor(env: Env): ToolDef[] {
+  return TOOLS.filter((t) => !t.edits || videoEditsEnabled(env));
+}
+
 export async function callTool(name: string, args: Json, env: Env, props: Props) {
-  const tool = TOOLS.find((t) => t.name === name);
+  const tool = toolsFor(env).find((t) => t.name === name);
   if (!tool) return { isError: true, content: [{ type: 'text', text: `Unknown tool: ${name}` }] };
   try {
     const text = await tool.run(args ?? {}, { env, props, token: () => accessToken(env, props) });
@@ -236,6 +300,17 @@ function err(r: { status: number; text: string }): string {
 
 function cap(s: string): string {
   return s.length > MAX_TEXT ? s.slice(0, MAX_TEXT) + `\n…[truncated ${s.length - MAX_TEXT} chars — narrow the query]` : s;
+}
+
+export function validateSnippet(x: { title: string; description: string; tags: string[] }): string[] {
+  const p: string[] = [];
+  if (!x.title.trim()) p.push('title is empty');
+  if ([...x.title].length > 100) p.push('title is over 100 characters');
+  if (new TextEncoder().encode(x.description).length > 5000) p.push('description is over 5000 bytes');
+  if (/[<>]/.test(x.title) || /[<>]/.test(x.description)) p.push('title/description may not contain < or >');
+  const tagLen = x.tags.reduce((n, t) => n + [...t].length + (t.includes(' ') ? 2 : 0), 0) + Math.max(0, x.tags.length - 1);
+  if (tagLen > 500) p.push('tags are over 500 characters in total');
+  return p;
 }
 
 function safeJson(s: string) {
