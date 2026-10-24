@@ -85,3 +85,50 @@ test('setup status reports booleans and ignores placeholder channel ids', () => 
   assert.equal(setupStatus({ ALLOWED_CHANNEL_IDS: 'UCN0aaaaaaaaaaaaaaaaaaaa' }).allowlist, true);
   assert.equal(setupStatus({ GOOGLE_CLIENT_ID: 'x', GOOGLE_CLIENT_SECRET: 'y', ALLOWED_EMAILS: 'a@b.c' }).allowlist, true);
 });
+
+// ---- opt-in video edits ----
+const editEnv = { ...env, ENABLE_VIDEO_EDITS: 'true' };
+const owned = { ...fresh, channels: [{ id: 'UCmine', title: 'Mine' }] };
+async function rpcE(body, props = owned) {
+  const r = await handleMcp(new Request('https://x/mcp', { method: 'POST', body: JSON.stringify(body) }), editEnv, props);
+  return r.json();
+}
+const callE = (args, props) => rpcE({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'video_update', arguments: args } }, props);
+
+test('video_update is hidden and refused unless ENABLE_VIDEO_EDITS=true', async () => {
+  const names = (await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' })).result.tools.map((t) => t.name);
+  assert.ok(!names.includes('video_update'));
+  const r = await call('video_update', { videoId: 'abcdefghijk' });
+  assert.equal(r.result.isError, true);
+  const on = (await rpcE({ jsonrpc: '2.0', id: 1, method: 'tools/list' })).result.tools.map((t) => t.name);
+  assert.ok(on.includes('video_update'));
+});
+
+test('video_update previews by default, keeps omitted fields, and applies with apply:true', async () => {
+  const sent = [];
+  const prev = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    if (init?.method === 'PUT') { sent.push(JSON.parse(init.body)); return new Response('{}'); }
+    if (u.includes('/videos?part=snippet&id=')) return new Response(JSON.stringify({ items: [{ id: 'abcdefghijk', snippet: { channelId: 'UCmine', title: 'Old', description: 'Desc', tags: ['a'], categoryId: '27', defaultLanguage: 'en' } }] }));
+    return prev(url, init);
+  };
+  try {
+    let r = await callE({ videoId: 'abcdefghijk', description: 'New desc' });
+    let j = JSON.parse(r.result.content[0].text);
+    assert.equal(j.applied, false);
+    assert.deepEqual(j.changed, ['description']);
+    assert.equal(sent.length, 0);
+    r = await callE({ videoId: 'abcdefghijk', description: 'New desc', apply: true });
+    j = JSON.parse(r.result.content[0].text);
+    assert.equal(j.applied, true);
+    assert.deepEqual(sent[0].snippet, { title: 'Old', description: 'New desc', tags: ['a'], categoryId: '27', defaultLanguage: 'en' });
+    r = await callE({ videoId: 'abcdefghijk', title: 'Bad <b>' , apply: true });
+    assert.equal(r.result.isError, true);
+    r = await callE({ videoId: 'abcdefghijk', title: 'X', apply: true }, { ...owned, channels: [{ id: 'UCother', title: 'x' }] });
+    assert.match(r.result.content[0].text, /not on the signed-in channel/);
+    assert.equal(sent.length, 1);
+  } finally {
+    globalThis.fetch = prev;
+  }
+});
