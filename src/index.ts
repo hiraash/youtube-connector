@@ -153,6 +153,9 @@ async function app(req: Request, env: Env, base: string): Promise<Response> {
       return new Response(null, { status: 302, headers });
     }
 
+    if (url.pathname === '/robots.txt') {
+      return new Response('User-agent: *\nDisallow: /\n', { headers: { 'Content-Type': 'text/plain' } });
+    }
     if (url.pathname === '/') {
       return setupPage(env, base);
     }
@@ -203,28 +206,30 @@ ${d.redirectIsLoopback ? '<p class="warn"><strong>This sends access to an app on
 function setupPage(env: Env, base: string): Response {
   const s = setupStatus(env);
   const ready = s.googleClientId && s.googleClientSecret && s.allowlist;
+  // Once configured, reveal nothing beyond "running". The checklist is only useful during setup.
+  if (ready) return page(200, 'Connector is running.');
   const row = (okay: boolean, label: string, fix: string) =>
     `<li>${okay ? '✅' : '❌'} ${label}${okay ? '' : ` — <span class="warn">${fix}</span>`}</li>`;
   const copy = (v: string) => `<code>${esc(v)}</code>`;
   return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>YouTube connector — setup</title><style>${CSS} li{margin:6px 0} code{word-break:break-all}</style>
-<div class="card"><h1>YouTube connector ${ready ? 'is ready' : 'setup'}</h1>
+<div class="card"><h1>YouTube connector setup</h1>
 <p><strong>Google OAuth redirect URI</strong> (paste into your Google OAuth client):<br>${copy(base + '/callback')}</p>
 <ul>
 ${row(s.googleClientId, 'GOOGLE_CLIENT_ID', 'add it as a Worker secret')}
 ${row(s.googleClientSecret, 'GOOGLE_CLIENT_SECRET', 'add it as a Worker secret')}
 ${row(s.allowlist, 'ALLOWED_EMAILS or ALLOWED_CHANNEL_IDS', 'add at least one, or nobody can sign in')}
 </ul>
-<p>Secrets: Cloudflare dashboard → Workers &amp; Pages → this Worker → Settings → Variables and Secrets. Changes apply immediately — refresh this page.</p>
+<p>Secrets: Cloudflare dashboard → Workers &amp; Pages → this Worker → Settings → Variables and Secrets. Changes apply immediately — refresh this page. Once everything is set, this page only says the connector is running.</p>
 <p><strong>Connector URL for Claude</strong> (Settings → Connectors → Add custom connector):<br>${copy(base + '/mcp')}</p>
 <p>Claude Code: ${copy('claude mcp add --transport http youtube ' + base + '/mcp')}</p></div>`, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY' },
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY', 'X-Robots-Tag': 'noindex', 'Cache-Control': 'no-store' },
   });
 }
 
 function page(status: number, html: string): Response {
   return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>YouTube connector</title><style>${CSS}</style><div class="card"><p>${html}</p></div>`, {
     status,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY' },
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Frame-Options': 'DENY', 'X-Robots-Tag': 'noindex', 'Cache-Control': 'no-store' },
   });
 }
