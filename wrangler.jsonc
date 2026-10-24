@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "youtube-connector",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "observability": { "enabled": true },
+
+  // No id on purpose: Wrangler (>= 4.45) creates the namespace on first deploy.
+  "kv_namespaces": [{ "binding": "OAUTH_KV" }]
+
+  // All configuration is set as Worker secrets in Cloudflare — nothing account-specific lives in this repo:
+  //   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ALLOWED_EMAILS, ALLOWED_CHANNEL_IDS
+  //   (optional) CONSENT_SECRET — derived from GOOGLE_CLIENT_SECRET when unset
+}
