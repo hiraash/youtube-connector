@@ -48,7 +48,7 @@ Click **Deploy to Cloudflare** above, connect GitHub, and fill in:
 Keep the project name `youtube-connector` (or use your own name in the URLs above). Click **Deploy**.
 
 ### 4. Check it (30 sec)
-Open `https://youtube-connector.<your-subdomain>.workers.dev`. The setup page should show three ✅ and the exact redirect URI — make sure it matches the one in Google.
+Open `https://youtube-connector.<your-subdomain>.workers.dev`. It should say **"Connector is running."** If anything is missing, it shows a checklist of what's missing plus the exact redirect URI and connector URL (once configured, the page reveals nothing else).
 
 ### 5. Connect Claude (1 min)
 - **Claude (web, desktop, mobile):** Settings → **Connectors → Add custom connector** → URL `https://youtube-connector.<your-subdomain>.workers.dev/mcp`.
@@ -93,7 +93,7 @@ Free for personal use. Typical use is a few hundred requests a day against Cloud
 | "not allowed to use this connector" | Add that email to `ALLOWED_EMAILS`, or the channel ID to `ALLOWED_CHANNEL_IDS` (Brand Accounts). |
 | Revenue metrics error / empty | Sign in with the account that owns or manages the channel and has monetisation. |
 | Have to reconnect every week | Google app is still in *Testing* — step 2.4, **Publish app**. |
-| Setup page shows ❌ | Cloudflare → Workers & Pages → `youtube-connector` → Settings → Variables and Secrets. |
+| Setup page shows a checklist | Something is missing — Cloudflare → Workers & Pages → `youtube-connector` → Settings → Variables and Secrets. |
 
 Change settings any time in **Variables and Secrets**; no redeploy needed.
 
