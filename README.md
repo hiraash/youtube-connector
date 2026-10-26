@@ -106,6 +106,7 @@ Free for personal use. Typical use is a few hundred requests a day against Cloud
 | `video_update` says insufficient permissions | You turned on `ENABLE_VIDEO_EDITS` after connecting: disconnect and reconnect the connector in Claude. |
 | Revenue metrics error / empty | Sign in with the account that owns or manages the channel and has monetisation. |
 | Have to reconnect every week | Google app is still in *Testing* — step 2.4, **Publish app**. |
+| Disconnects within hours when two people sign in with the same (Brand) account | Fixed 2026-10-26: each sign-in used to cancel the other's. Update to the latest `main`, then reconnect each Claude once. |
 | Setup page shows a checklist | Something is missing — Cloudflare → Workers & Pages → `youtube-connector` → Settings → Variables and Secrets. |
 
 Change settings any time in **Variables and Secrets**; no redeploy needed.
