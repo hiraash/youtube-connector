@@ -73,6 +73,11 @@ function getProvider(env: Env, base: string): OAuthProvider<Env> {
   return provider;
 }
 
+/** Grant owner id. The provider forbids ':' in user ids, so the channel fallback uses '-'. */
+export function grantUserId(email: string, channels: { id: string }[]): string {
+  return (email || 'channel-' + (channels[0]?.id ?? 'unknown')).replace(/:/g, '-');
+}
+
 function ttlSeconds(expiresAt: number): number {
   return Math.max(60, Math.floor((expiresAt - Date.now()) / 1000) - 60);
 }
@@ -142,13 +147,18 @@ async function app(req: Request, env: Env, base: string): Promise<Response> {
         googleRefreshToken: tokens.refresh_token,
         googleExpiresAt: Date.now() + tokens.expires_in * 1000,
       };
-      const userId = email || 'channel:' + (channels[0]?.id ?? 'unknown');
+      const userId = grantUserId(email, channels);
       const { redirectTo } = await oauth.completeAuthorization({
         request: original,
         userId,
         metadata: { email, channels: channels.map((c) => c.id) },
         scope: original.scope,
         props,
+        // Keep other connections alive. Claude uses one client ID for every user, and people
+        // who share a Brand Account sign in as the same Google identity — with the default
+        // (revoke), each new sign-in silently disconnected everyone else. Unused grants
+        // expire on their own after refreshTokenIdleTTL.
+        revokeExistingGrants: false,
       });
       headers.set('Location', redirectTo);
       return new Response(null, { status: 302, headers });
