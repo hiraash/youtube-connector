@@ -16,7 +16,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "test": "esbuild test/entry.ts --bundle --format=esm --platform=neutral --outfile=.test-build/entry.mjs --log-level=warning && node --test test/mcp.test.mjs"
+    "test": "esbuild test/entry.ts --bundle --format=esm --platform=neutral --outfile=.test-build/entry.mjs --log-level=warning && esbuild test/worker-entry.ts --bundle --format=esm --platform=neutral --main-fields=module,main --alias:cloudflare:workers=./test/cloudflare-workers-shim.mjs --outfile=.test-build/worker.mjs --log-level=warning && node --test test/mcp.test.mjs test/oauth-flow.test.mjs"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "1.2.4"
